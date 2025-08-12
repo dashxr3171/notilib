@@ -1,13 +1,11 @@
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local TextService = game:GetService("TextService")
 
 local insert, remove = table.insert, table.remove
 local format = string.format
 local newInstance = Instance.new
 
 local notificationPositions = {
-    -- Increased Y offset from 40 to 80 to move notifications further down
     ["TopLeft"] = {Position = UDim2.new(0, 10, 0, 80), AnchorPoint = Vector2.new(0, 0)},
     ["MiddleLeft"] = {Position = UDim2.new(0, 10, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
     ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -80), AnchorPoint = Vector2.new(0, 1)},
@@ -55,7 +53,7 @@ do
         notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
         notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
         notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
-        notificationSettings.TextSize = notificationSettings.TextSize or 14
+        notificationSettings.TextSize = notificationSettings.TextSize or 13 -- smaller text size
         notificationSettings.TextStrokeTransparency = notificationSettings.TextStrokeTransparency or 0.8
         notificationSettings.TextStrokeColor = notificationSettings.TextStrokeColor or Color3.new(0, 0, 0)
         notificationSettings.TextFont = notificationSettings.TextFont or Enum.Font.Code
@@ -121,11 +119,8 @@ do
                 yOffset = yOffset + notif.AbsoluteSize.Y + spacing
             end
 
-            local targetPosition = UDim2.new(0, 0, 0, targetY)
-            local tween = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-                Position = targetPosition
-            })
-            tween:Play()
+            -- Immediately set Y position only (X remains unchanged)
+            notif.Position = UDim2.new(notif.Position.X.Scale, notif.Position.X.Offset, 0, targetY)
         end
     end
 
@@ -135,7 +130,7 @@ do
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
             BackgroundTransparency = 0,
-            Position = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(-0.5, 0, 0, 0), -- Start offscreen left, Y will be updated instantly
             ClipsDescendants = true,
             BorderSizePixel = 0,
         })
@@ -144,7 +139,7 @@ do
             Name = "bookmark",
             Parent = notifFrame,
             BackgroundColor3 = self.BookmarkColor,
-            Size = UDim2.new(0, 2, 1, 0), -- Thinner bookmark (2px wide)
+            Size = UDim2.new(0, 2, 1, 0), -- thinner bookmark 2px
             Position = UDim2.new(0, 0, 0, 0),
         })
 
@@ -164,22 +159,19 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Use TextService to measure text size accurately
-        local textSize = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 1000))
-        local paddingX = 12
-        local notifWidth = math.clamp(textSize.X + paddingX, 60, 300)
+        task.wait() -- wait a frame so TextBounds updates properly
 
-        local notifHeight = 20
+        local textBounds = label.TextBounds
+        local paddingX = 12 -- 6 left padding + 2 bookmark + 4 extra spacing
+        local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
+        local notifHeight = 20 -- thinner notification height
+
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
+        label.Size = UDim2.new(0, textBounds.X, 1, 0)
 
-        label.Size = UDim2.new(0, textSize.X, 1, 0)
-
-        notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
-        label.TextTransparency = 1
-        label.TextStrokeTransparency = 1
-
+        -- Tween ONLY X from offscreen left to 0 (Y stays fixed)
         local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0, 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset)
         })
         local textTween = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             TextTransparency = 0,
@@ -194,12 +186,12 @@ do
 
         task.delay(self.NotificationLifetime, function()
             local tweenOutFrame = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
-                Position = notifFrame.Position - UDim2.new(0.2, 0, 0, 0),
-                BackgroundTransparency = 1
+                Position = UDim2.new(-0.5, 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset),
+                BackgroundTransparency = 1,
             })
             local tweenOutText = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
                 TextTransparency = 1,
-                TextStrokeTransparency = 1
+                TextStrokeTransparency = 1,
             })
 
             tweenOutFrame:Play()
