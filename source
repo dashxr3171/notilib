@@ -138,9 +138,9 @@ do
         })
 
         -- Calculate text size using TextService:GetTextSize()
-        local paddingX = 5
+        local paddingX = 10
         local textSizeVector = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 100)) -- max width large enough
-        local notifWidth = math.clamp(textSizeVector.X + paddingX, 60, 600)
+        local notifWidth = math.clamp(textSizeVector.X + paddingX, 60, 999)
         local notifHeight = math.clamp(textSizeVector.Y + 6, 20, 50)
 
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
