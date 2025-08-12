@@ -88,7 +88,7 @@ do
     end
 
     function notifications:_repositionNotifications()
-        local spacing = 5
+        local spacing = 9
         local yOffset = 0
 
         for _, notif in ipairs(self._activeNotifications) do
