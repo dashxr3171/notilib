@@ -6,6 +6,19 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
+-- Helper color lookup for named colors
+local ColorMap = {
+    Red = Color3.fromRGB(255, 85, 85),
+    Green = Color3.fromRGB(85, 255, 85),
+    Blue = Color3.fromRGB(85, 170, 255),
+    Yellow = Color3.fromRGB(255, 255, 85),
+    Orange = Color3.fromRGB(255, 170, 0),
+    Purple = Color3.fromRGB(170, 85, 255),
+    White = Color3.fromRGB(255, 255, 255),
+    Black = Color3.fromRGB(0, 0, 0),
+    Default = Color3.fromRGB(50, 50, 50),
+}
+
 function NotificationLib.new()
     local self = setmetatable({}, NotificationLib)
     
@@ -34,28 +47,43 @@ function NotificationLib.new()
     self.UIListLayout = uiListLayout
     
     -- Default notification color
-    self.NotifColor = Color3.fromRGB(50, 50, 50)
+    self.NotifColor = ColorMap.Default
     
     return self
 end
 
--- Set notification background color
+-- Set notification background color directly with a Color3
 function NotificationLib:SetColor(color3)
-    self.NotifColor = color3 or Color3.fromRGB(50, 50, 50)
+    self.NotifColor = color3 or ColorMap.Default
 end
 
--- Create a new notification with the given text
-function NotificationLib:LCreatNoti(text)
+-- Create a new notification with options table
+-- options: { Color = "Red", Text = "Your text here" }
+function NotificationLib:new(options)
+    options = options or {}
+    local colorName = options.Color or "Default"
+    local text = options.Text or ""
+
+    local color = ColorMap[colorName] or ColorMap.Default
+    
     local notifFrame = Instance.new("Frame")
-    notifFrame.BackgroundColor3 = self.NotifColor
-    notifFrame.BackgroundTransparency = 0.4  -- subtle transparency
+    notifFrame.BackgroundColor3 = color
+    notifFrame.BackgroundTransparency = 1 -- start transparent for tween
     notifFrame.BorderSizePixel = 0
     notifFrame.AnchorPoint = Vector2.new(0, 0)
     notifFrame.Size = UDim2.new(0, 300, 0, 24) -- thinner height
     notifFrame.Parent = self.Container
     notifFrame.ClipsDescendants = true
-    notifFrame.BackgroundTransparency = 1 -- start transparent for tween
     
+    -- Left thin white bar
+    local leftBar = Instance.new("Frame")
+    leftBar.Size = UDim2.new(0, 4, 1, 0)
+    leftBar.Position = UDim2.new(0, 0, 0, 0)
+    leftBar.BackgroundColor3 = Color3.new(1, 1, 1) -- white bar
+    leftBar.BorderSizePixel = 0
+    leftBar.Parent = notifFrame
+    
+    -- Text label
     local textLabel = Instance.new("TextLabel")
     textLabel.BackgroundTransparency = 1
     textLabel.Size = UDim2.new(1, -12, 1, 0)
@@ -66,7 +94,7 @@ function NotificationLib:LCreatNoti(text)
     textLabel.TextXAlignment = Enum.TextXAlignment.Left
     textLabel.TextYAlignment = Enum.TextYAlignment.Center
     textLabel.TextWrapped = false
-    textLabel.Text = text or ""
+    textLabel.Text = text
     textLabel.TextTransparency = 1
     textLabel.Parent = notifFrame
     
@@ -76,7 +104,7 @@ function NotificationLib:LCreatNoti(text)
     fadeIn:Play()
     textFadeIn:Play()
     
-    -- Auto fade out
+    -- Auto fade out after 2 seconds
     delay(2, function()
         local fadeOut = TweenService:Create(notifFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
         local textFadeOut = TweenService:Create(textLabel, TweenInfo.new(0.5), {TextTransparency = 1})
