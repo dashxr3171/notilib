@@ -5,12 +5,10 @@ local insert, remove = table.insert, table.remove
 local format = string.format
 local newInstance = Instance.new
 
--- Allowed left-only positions with AnchorPoints for perfect alignment
 local notificationPositions = {
-    -- Positioned slightly outside the exact corner to "hug" top-left screen corner better
-    ["TopLeft"] = {Position = UDim2.new(0, -2, 0, -2), AnchorPoint = Vector2.new(0, 0)},
-    ["MiddleLeft"] = {Position = UDim2.new(0, -2, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
-    ["BottomLeft"] = {Position = UDim2.new(0, -2, 1, 2), AnchorPoint = Vector2.new(0, 1)},
+    ["TopLeft"] = {Position = UDim2.new(0, 4, 0, 10), AnchorPoint = Vector2.new(0, 0)},
+    ["MiddleLeft"] = {Position = UDim2.new(0, 4, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
+    ["BottomLeft"] = {Position = UDim2.new(0, 4, 1, 2), AnchorPoint = Vector2.new(0, 1)},
 }
 
 local function isTopPosition(position)
@@ -40,17 +38,6 @@ local function createObject(className, properties)
     return instance
 end
 
-local function fadeAndSlideOut(notification, onComplete)
-    local goal = {
-        TextTransparency = 1,
-        TextStrokeTransparency = 1,
-        Position = notification.Position + UDim2.new(-0.1, 0, 0, 0) -- slide left on fade out
-    }
-    local tween = TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), goal)
-    tween.Completed:Connect(onComplete)
-    tween:Play()
-end
-
 local notifications = {}
 
 do
@@ -63,7 +50,6 @@ do
             notificationSettings[setting] = value
         end
 
-        -- Defaults
         notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
         notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
         notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
@@ -156,14 +142,12 @@ do
             Name = "notificationsFrame",
             Parent = notifications_screenGui,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 1, -- make holder fully invisible now
+            BackgroundTransparency = 1, -- invisible holder
             Position = posData.Position,
             AnchorPoint = posData.AnchorPoint,
-            Size = UDim2.new(0, 120, 0, 260),
+            Size = UDim2.new(0, 80, 1, -posData.Position.Y.Offset),
             ClipsDescendants = true
         })
-
-        -- no UIListLayout for manual tween positioning
     end
 
     function notifications:_repositionNotifications()
@@ -205,7 +189,6 @@ do
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
             BackgroundTransparency = 0,
-            Size = UDim2.new(0, 120, 0, 28),
             Position = UDim2.new(0, 0, 0, 0),
             ClipsDescendants = true,
         })
@@ -235,6 +218,12 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
+        -- Dynamically resize notifFrame height based on label TextBounds
+        local textBounds = label.TextBounds
+        local paddingY = 10
+        local notifHeight = math.clamp(textBounds.Y + paddingY, 24, 100)
+        notifFrame.Size = UDim2.new(0, 80, 0, notifHeight)
+
         -- Animate slide-in from left (-0.2 x offset)
         notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
         label.TextTransparency = 1
@@ -256,7 +245,19 @@ do
         self:_repositionNotifications()
 
         task.delay(self.NotificationLifetime, function()
-            fadeAndSlideOut(notifFrame, function()
+            local tweenOutFrame = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+                Position = notifFrame.Position - UDim2.new(0.2, 0, 0, 0),
+                BackgroundTransparency = 1
+            })
+            local tweenOutText = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+                TextTransparency = 1,
+                TextStrokeTransparency = 1
+            })
+
+            tweenOutFrame:Play()
+            tweenOutText:Play()
+
+            tweenOutFrame.Completed:Connect(function()
                 for i, v in ipairs(self._activeNotifications) do
                     if v == notifFrame then
                         remove(self._activeNotifications, i)
