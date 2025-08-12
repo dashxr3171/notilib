@@ -109,7 +109,7 @@ do
             Name = "notification",
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0.5,
+            BackgroundTransparency = 1,
             Position = UDim2.new(-0.2, 0, 0, 0),
             ClipsDescendants = true,
             BorderSizePixel = 0,
