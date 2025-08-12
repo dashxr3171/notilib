@@ -138,7 +138,7 @@ do
         })
 
         -- Calculate text size using TextService:GetTextSize()
-        local paddingX = 12
+        local paddingX = 15
         local textSizeVector = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 100)) -- max width large enough
         local notifWidth = math.clamp(textSizeVector.X + paddingX, 60, 600)
         local notifHeight = math.clamp(textSizeVector.Y + 6, 20, 50)
