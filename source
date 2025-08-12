@@ -140,7 +140,7 @@ do
         task.wait(0.1)
         local textBounds = label.TextBounds
         local paddingX = 12
-        local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
+        local notifWidth = math.clamp(textBounds.X + paddingX, 200, 300)
         local notifHeight = 20
 
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
