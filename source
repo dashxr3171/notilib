@@ -1,5 +1,6 @@
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local TextService = game:GetService("TextService")
 
 local insert, remove = table.insert, table.remove
 local format = string.format
@@ -163,14 +164,15 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        local textBounds = label.TextBounds
+        -- Use TextService to measure text size accurately
+        local textSize = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 1000))
         local paddingX = 12
-        local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
+        local notifWidth = math.clamp(textSize.X + paddingX, 60, 300)
 
         local notifHeight = 20
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
 
-        label.Size = UDim2.new(0, textBounds.X, 1, 0)
+        label.Size = UDim2.new(0, textSize.X, 1, 0)
 
         notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
         label.TextTransparency = 1
