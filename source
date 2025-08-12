@@ -126,7 +126,7 @@ do
             Parent = notifFrame,
             BackgroundTransparency = 1,
             Position = UDim2.new(0, 6, 0, 0),
-            Text = "aowijrseoijrtsoeijtsoiejtseiojtsioetj,
+            Text = "aowijrseoijrtsoeijtsoiejtseioawdawddjtsioetj",
             TextWrapped = false,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
