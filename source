@@ -109,7 +109,7 @@ do
             Name = "notification",
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 1,
+            BackgroundTransparency = 0, -- fully opaque background!
             Position = UDim2.new(-0.2, 0, 0, 0),
             ClipsDescendants = true,
             BorderSizePixel = 0,
@@ -140,10 +140,13 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
+        -- Wait for label to render and update TextBounds properly
+        label:GetPropertyChangedSignal("TextBounds"):Wait()
+
         local textBounds = label.TextBounds
         local paddingX = 12
         local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
-        local notifHeight = 20
+        local notifHeight = math.clamp(textBounds.Y + 4, 20, 50) -- dynamically adjust height based on text height with some padding
 
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
         label.Size = UDim2.new(0, textBounds.X, 1, 0)
