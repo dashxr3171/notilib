@@ -6,19 +6,50 @@ local format = string.format
 local newInstance = Instance.new
 
 local notificationPositions = {
-    -- shifted X from 4 to 10 pixels (moved right)
     ["TopLeft"] = {Position = UDim2.new(0, 10, 0, 10), AnchorPoint = Vector2.new(0, 0)},
     ["MiddleLeft"] = {Position = UDim2.new(0, 10, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
-    ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, 2), AnchorPoint = Vector2.new(0, 1)},
+    ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -10), AnchorPoint = Vector2.new(0, 1)},
 }
 
--- ... (other code unchanged, including isTopPosition, isBottomPosition, protectScreenGui, createObject, etc.)
+local function isTopPosition(position)
+    return position == "TopLeft" or position == "MiddleLeft"
+end
+
+local function isBottomPosition(position)
+    return position == "BottomLeft"
+end
+
+local function protectScreenGui(screenGui)
+    if syn and syn.protect_gui then
+        syn.protect_gui(screenGui)
+        screenGui.Parent = CoreGui
+    elseif gethui then
+        screenGui.Parent = gethui()
+    else
+        screenGui.Parent = CoreGui
+    end
+end
+
+local function createObject(className, properties)
+    local instance = newInstance(className)
+    for index, value in pairs(properties) do
+        instance[index] = value
+    end
+    return instance
+end
 
 local notifications = {}
 
 do
     function notifications.new(settings)
-        -- ... unchanged initialization and defaults ...
+        assert(settings, "missing argument #1 in function notifications.new(settings)")
+        assert(typeof(settings) == "table", format("expected table for argument #1 in function notifications.new(settings), got %s", typeof(settings)))
+
+        local notificationSettings = {ui = {notificationsFrame = nil}}
+        for setting, value in pairs(settings) do
+            notificationSettings[setting] = value
+        end
+
         notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
         notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
         notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
@@ -37,14 +68,13 @@ do
         return notificationSettings
     end
 
-    -- ... other setter methods unchanged ...
-
     function notifications:BuildNotificationUI()
         if notifications_screenGui then
             notifications_screenGui:Destroy()
         end
 
         getgenv().notifications_screenGui = createObject("ScreenGui", {
+            Name = "NotificationScreenGui",
             ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
             IgnoreGuiInset = true,
         })
@@ -59,7 +89,7 @@ do
             BackgroundTransparency = 1, -- invisible holder
             Position = posData.Position,
             AnchorPoint = posData.AnchorPoint,
-            Size = UDim2.new(0, 300, 1, -posData.Position.Y.Offset), -- widened max width for notifications
+            Size = UDim2.new(0, 300, 1, -posData.Position.Y.Offset), -- full height minus offset
             ClipsDescendants = true
         })
     end
@@ -105,6 +135,7 @@ do
             BackgroundTransparency = 0,
             Position = UDim2.new(0, 0, 0, 0),
             ClipsDescendants = true,
+            BorderSizePixel = 0,
         })
 
         local bookmark = createObject("Frame", {
@@ -119,10 +150,9 @@ do
             Name = "label",
             Parent = notifFrame,
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 6, 0, 0),
-            -- Size auto adjusted below based on TextBounds
+            Position = UDim2.new(0, 8, 0, 0),
             Text = text,
-            TextWrapped = false, -- NO wrapping
+            TextWrapped = false,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             Font = self.TextFont,
@@ -132,17 +162,16 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Dynamically size notifFrame width based on text width plus padding
+        -- Dynamically size notifFrame width based on text width + padding
         local textBounds = label.TextBounds
-        local paddingX = 14 -- 6 left padding + 4 bookmark + 4 extra spacing
-        local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300) -- clamp min/max width
+        local paddingX = 14 -- 4 bookmark + 8 padding
+        local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
+        local notifHeight = 24 -- fixed height
 
-        local notifHeight = 24 -- fixed height (single line, no wrap)
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
-
         label.Size = UDim2.new(0, textBounds.X, 1, 0)
 
-        -- Animate slide-in from left (-0.2 x offset)
+        -- Slide in from left offset
         notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
         label.TextTransparency = 1
         label.TextStrokeTransparency = 1
@@ -150,10 +179,9 @@ do
         local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             Position = UDim2.new(0, 0, 0, 0),
         })
-
         local textTween = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             TextTransparency = 0,
-            TextStrokeTransparency = self.TextStrokeTransparency
+            TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
         tweenIn:Play()
