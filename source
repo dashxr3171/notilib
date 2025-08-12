@@ -1,119 +1,270 @@
--- NotificationLib ModuleScript
-local NotificationLib = {}
-NotificationLib.__index = NotificationLib
+-- variables
+local TweenService, CoreGui = game:GetService("TweenService"), game:GetService("CoreGui")
 
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local insert, remove = table.insert, table.remove
+local format = string.format
+local newInstance = Instance.new
+local fromRGB = Color3.fromRGB
 
--- Helper color lookup for named colors
-local ColorMap = {
-    Red = Color3.fromRGB(255, 85, 85),
-    Green = Color3.fromRGB(85, 255, 85),
-    Blue = Color3.fromRGB(85, 170, 255),
-    Yellow = Color3.fromRGB(255, 255, 85),
-    Orange = Color3.fromRGB(255, 170, 0),
-    Purple = Color3.fromRGB(170, 85, 255),
-    White = Color3.fromRGB(255, 255, 255),
-    Black = Color3.fromRGB(0, 0, 0),
-    Default = Color3.fromRGB(50, 50, 50),
+local notificationPositions = {
+    ["Middle"] = UDim2.new(0.445, 0, 0.7, 0),
+    ["MiddleRight"] = UDim2.new(0.85, 0, 0.7, 0),
+    ["MiddleLeft"] = UDim2.new(0.01, 0, 0.7, 0),
+
+    ["Top"] = UDim2.new(0.445, 0, 0.007, 0),
+    ["TopLeft"] = UDim2.new(0.06, 0, 0.001, 0),
+    ["TopRight"] = UDim2.new(0.8, 0, 0.001, 0),
+
+    ["Bottom"] = UDim2.new(0.445, 0, 0.95, 0),
+    ["BottomLeft"] = UDim2.new(0.06, 0, 0.95, 0),
+    ["BottomRight"] = UDim2.new(0.8, 0, 0.95, 0),
 }
 
-function NotificationLib.new()
-    local self = setmetatable({}, NotificationLib)
-    print("Creating NotificationLib instance")
-
-    self.ScreenGui = Instance.new("ScreenGui")
-    self.ScreenGui.Name = "CustomNotificationGui"
-    self.ScreenGui.ResetOnSpawn = false
-    self.ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-    
-    self.Container = Instance.new("Frame")
-    self.Container.Name = "NotificationContainer"
-    self.Container.BackgroundTransparency = 1
-    self.Container.Position = UDim2.new(0, 10, 0, 10)
-    self.Container.Size = UDim2.new(0, 300, 0, 0)
-    self.Container.AnchorPoint = Vector2.new(0, 0)
-    self.Container.Parent = self.ScreenGui
-    self.Container.AutomaticSize = Enum.AutomaticSize.Y
-
-    assert(self.Container, "Container frame failed to create!")
-
-    local uiListLayout = Instance.new("UIListLayout")
-    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    uiListLayout.Padding = UDim.new(0, 5)
-    uiListLayout.Parent = self.Container
-
-    self.UIListLayout = uiListLayout
-    self.NotifColor = ColorMap.Default
-
-    print("NotificationLib instance created with Container:", self.Container)
-
-    return self
+-- Determines if the position is a top or bottom stacking area
+local function isTopPosition(position)
+    return position == "Top" or position == "TopLeft" or position == "TopRight" or
+           position == "Middle" or position == "MiddleLeft" or position == "MiddleRight"
 end
 
-
--- Set notification background color directly with a Color3
-function NotificationLib:SetColor(color3)
-    self.NotifColor = color3 or ColorMap.Default
+local function isRightSide(position)
+    return position == "TopRight" or position == "MiddleRight" or position == "BottomRight"
 end
 
--- Create a new notification with options table
--- options: { Color = "Red", Text = "Your text here" }
-function NotificationLib:new(options)
-    options = options or {}
-    local colorName = options.Color or "Default"
-    local text = options.Text or ""
-
-    local color = ColorMap[colorName] or ColorMap.Default
-    
-    local notifFrame = Instance.new("Frame")
-    notifFrame.BackgroundColor3 = color
-    notifFrame.BackgroundTransparency = 1 -- start transparent for tween
-    notifFrame.BorderSizePixel = 0
-    notifFrame.AnchorPoint = Vector2.new(0, 0)
-    notifFrame.Size = UDim2.new(0, 300, 0, 24) -- thinner height
-    notifFrame.Parent = self.Container
-    notifFrame.ClipsDescendants = true
-    
-    -- Left thin white bar
-    local leftBar = Instance.new("Frame")
-    leftBar.Size = UDim2.new(0, 4, 1, 0)
-    leftBar.Position = UDim2.new(0, 0, 0, 0)
-    leftBar.BackgroundColor3 = Color3.new(1, 1, 1) -- white bar
-    leftBar.BorderSizePixel = 0
-    leftBar.Parent = notifFrame
-    
-    -- Text label
-    local textLabel = Instance.new("TextLabel")
-    textLabel.BackgroundTransparency = 1
-    textLabel.Size = UDim2.new(1, -12, 1, 0)
-    textLabel.Position = UDim2.new(0, 6, 0, 0)
-    textLabel.Font = Enum.Font.SourceSansSemibold
-    textLabel.TextSize = 14 -- smaller font size
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
-    textLabel.TextXAlignment = Enum.TextXAlignment.Left
-    textLabel.TextYAlignment = Enum.TextYAlignment.Center
-    textLabel.TextWrapped = false
-    textLabel.Text = text
-    textLabel.TextTransparency = 1
-    textLabel.Parent = notifFrame
-    
-    -- Tween fade in
-    local fadeIn = TweenService:Create(notifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0.4})
-    local textFadeIn = TweenService:Create(textLabel, TweenInfo.new(0.3), {TextTransparency = 0})
-    fadeIn:Play()
-    textFadeIn:Play()
-    
-    -- Auto fade out after 2 seconds
-    delay(2, function()
-        local fadeOut = TweenService:Create(notifFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
-        local textFadeOut = TweenService:Create(textLabel, TweenInfo.new(0.5), {TextTransparency = 1})
-        fadeOut:Play()
-        textFadeOut:Play()
-        fadeOut.Completed:Wait()
-        notifFrame:Destroy()
-    end)
+local function isLeftSide(position)
+    return position == "TopLeft" or position == "MiddleLeft" or position == "BottomLeft"
 end
 
-return NotificationLib
+local function protectScreenGui(screenGui)
+    if syn and syn.protect_gui then
+        syn.protect_gui(screenGui)
+        screenGui.Parent = CoreGui
+    elseif gethui then
+        screenGui.Parent = gethui()
+    else
+        screenGui.Parent = CoreGui
+    end
+end
+
+local function createObject(className, properties)
+    local instance = newInstance(className)
+    for index, value in next, properties do
+        instance[index] = value
+    end
+    return instance
+end
+
+local function fadeAndSlideOut(notification, isRight, onComplete)
+    -- Tween slide out horizontally and fade text out
+    local goal = {
+        TextTransparency = 1,
+        TextStrokeTransparency = 1,
+        Position = notification.Position + UDim2.new(isRight and 0.1 or -0.1, 0, 0, 0)
+    }
+    local tween = TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), goal)
+    tween.Completed:Connect(onComplete)
+    tween:Play()
+end
+
+local notifications = {}
+
+do
+    function notifications.new(settings)
+        assert(settings, "missing argument #1 in function notifications.new(settings)")
+        assert(typeof(settings) == "table", format("expected table for argument #1 in function notifications.new(settings), got %s", typeof(settings)))
+
+        local notificationSettings = {ui = {notificationsFrame = nil, notificationsFrame_UIListLayout = nil}}
+
+        for setting, value in next, settings do
+            notificationSettings[setting] = value
+        end
+
+        -- Defaults
+        notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopRight"
+        notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
+        notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
+        notificationSettings.TextSize = notificationSettings.TextSize or 14
+        notificationSettings.TextStrokeTransparency = notificationSettings.TextStrokeTransparency or 0.8
+        notificationSettings.TextStrokeColor = notificationSettings.TextStrokeColor or Color3.new(0, 0, 0)
+        notificationSettings.TextFont = notificationSettings.TextFont or Enum.Font.SourceSansBold
+
+        setmetatable(notificationSettings, {__index = notifications})
+        notificationSettings:BuildNotificationUI()
+        notificationSettings._activeNotifications = {}
+
+        return notificationSettings
+    end
+
+    function notifications:SetNotificationLifetime(number)
+        assert(number, "missing argument #1 in function SetNotificationLifetime(number)")
+        assert(typeof(number) == "number", format("expected number for argument #1 in function SetNotificationLifetime, got %s", typeof(number)))
+        self.NotificationLifetime = number
+    end
+
+    function notifications:SetTextColor(color3)
+        assert(color3, "missing argument #1 in function SetTextColor(Color3)")
+        assert(typeof(color3) == "Color3", format("expected Color3 for argument #1 in function SetTextColor3, got %s", typeof(color3)))
+        self.TextColor = color3
+    end
+
+    function notifications:SetTextSize(number)
+        assert(number, "missing argument #1 in function SetTextSize(number)")
+        assert(typeof(number) == "number", format("expected number for argument #1 in function SetTextSize, got %s", typeof(number)))
+        self.TextSize = number
+    end
+
+    function notifications:SetTextStrokeTransparency(number)
+        assert(number, "missing argument #1 in function SetTextStrokeTransparency(number)")
+        assert(typeof(number) == "number", format("expected number for argument #1 in function SetTextStrokeTransparency, got %s", typeof(number)))
+        self.TextStrokeTransparency = number
+    end
+
+    function notifications:SetTextStrokeColor(color3)
+        assert(color3, "missing argument #1 in function SetTextStrokeColor(Color3)")
+        assert(typeof(color3) == "Color3", format("expected Color3 for argument #1 in function SetTextStrokeColor, got %s", typeof(color3)))
+        self.TextStrokeColor = color3
+    end
+
+    function notifications:SetTextFont(font)
+        assert(font, "missing argument #1 in function SetTextFont(Font)")
+        assert((typeof(font) == "string" or typeof(font) == "EnumItem"))
+        if typeof(font) == "string" then
+            self.TextFont = Enum.Font[font]
+        else
+            self.TextFont = font
+        end
+    end
+
+    function notifications:SetNotificationPosition(position)
+        assert(position, "missing argument #1 in function SetNotificationPosition(position)")
+        assert(notificationPositions[position], format("Invalid notification position '%s'", tostring(position)))
+
+        self.NotificationPosition = position
+        if self.ui and self.ui.notificationsFrame then
+            self.ui.notificationsFrame.Position = notificationPositions[position]
+        end
+    end
+
+    function notifications:BuildNotificationUI()
+        if notifications_screenGui then
+            notifications_screenGui:Destroy()
+        end
+
+        getgenv().notifications_screenGui = createObject("ScreenGui", {
+            ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        })
+        protectScreenGui(notifications_screenGui)
+
+        self.ui.notificationsFrame = createObject("Frame", {
+            Name = "notificationsFrame",
+            Parent = notifications_screenGui,
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 1.000,
+            Position = notificationPositions[self.NotificationPosition],
+            Size = UDim2.new(0, 240, 0, 215),
+            ClipsDescendants = true
+        })
+
+        self.ui.notificationsFrame_UIListLayout = createObject("UIListLayout", {
+            Name = "notificationsFrame_UIListLayout",
+            Parent = self.ui.notificationsFrame,
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder
+        })
+
+        -- We will disable automatic layout to manage tweening manually
+        self.ui.notificationsFrame_UIListLayout.Parent = nil
+    end
+
+    function notifications:_repositionNotifications()
+        -- Reposition all active notifications smoothly based on stacking rules
+        local yOffset = 0
+        local spacing = 4
+        local stackDown = isTopPosition(self.NotificationPosition) -- true if stacking downward, false if upward
+
+        -- For stacking up, we start from the bottom and move upwards
+        local notificationsToPosition = self._activeNotifications
+
+        if not stackDown then
+            -- Reverse the order for stacking upward (bottom positions)
+            notificationsToPosition = {}
+            for i = #self._activeNotifications, 1, -1 do
+                insert(notificationsToPosition, self._activeNotifications[i])
+            end
+        end
+
+        for i, notif in ipairs(notificationsToPosition) do
+            local targetY
+            if stackDown then
+                targetY = yOffset
+                yOffset = yOffset + notif.AbsoluteSize.Y + spacing
+            else
+                -- Start from bottom, move up
+                targetY = - (yOffset + notif.AbsoluteSize.Y)
+                yOffset = yOffset + notif.AbsoluteSize.Y + spacing
+            end
+
+            local targetPosition = UDim2.new(0, 0, 0, targetY)
+            local tween = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Position = targetPosition
+            })
+            tween:Play()
+        end
+    end
+
+    function notifications:Notify(text)
+        local notifFrame = createObject("TextLabel", {
+            Name = "notification",
+            Parent = self.ui.notificationsFrame,
+            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            BackgroundTransparency = 0.3,
+            Size = UDim2.new(0, 220, 0, 26),
+            Text = text,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
+
+            Font = self.TextFont,
+            TextColor3 = self.TextColor,
+            TextSize = self.TextSize,
+            TextStrokeColor3 = self.TextStrokeColor,
+            TextStrokeTransparency = self.TextStrokeTransparency,
+            Position = UDim2.new(0, 0, 0, 0),
+            ClipsDescendants = true,
+            LayoutOrder = #self._activeNotifications + 1
+        })
+
+        -- Tween slide-in from the opposite side (left or right) based on position
+        local isRight = isRightSide(self.NotificationPosition)
+        local startX = isRight and 0.2 or -0.2
+        notifFrame.Position = UDim2.new(startX, 0, 0, 0)
+        notifFrame.TextTransparency = 1
+        notifFrame.TextStrokeTransparency = 1
+
+        local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, 0),
+            TextTransparency = 0,
+            TextStrokeTransparency = self.TextStrokeTransparency
+        })
+        tweenIn:Play()
+
+        insert(self._activeNotifications, notifFrame)
+        self:_repositionNotifications()
+
+        -- Remove notification after lifetime with fade and slide out
+        task.delay(self.NotificationLifetime, function()
+            fadeAndSlideOut(notifFrame, isRight, function()
+                -- Remove from active notifications
+                for i, v in ipairs(self._activeNotifications) do
+                    if v == notifFrame then
+                        remove(self._activeNotifications, i)
+                        break
+                    end
+                end
+                notifFrame:Destroy()
+                self:_repositionNotifications()
+            end)
+        end)
+    end
+end
+
+return notifications
