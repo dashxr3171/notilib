@@ -46,55 +46,43 @@ end
 
 -- Create a new notification with the given text
 function NotificationLib:LCreatNoti(text)
-    -- Create frame for notification
     local notifFrame = Instance.new("Frame")
     notifFrame.BackgroundColor3 = self.NotifColor
-    notifFrame.BackgroundTransparency = 1
+    notifFrame.BackgroundTransparency = 0.4  -- subtle transparency
     notifFrame.BorderSizePixel = 0
     notifFrame.AnchorPoint = Vector2.new(0, 0)
-    notifFrame.Size = UDim2.new(0, 300, 0, 30) -- temporary size
+    notifFrame.Size = UDim2.new(0, 300, 0, 24) -- thinner height
     notifFrame.Parent = self.Container
     notifFrame.ClipsDescendants = true
+    notifFrame.BackgroundTransparency = 1 -- start transparent for tween
     
-    -- Create text label
     local textLabel = Instance.new("TextLabel")
     textLabel.BackgroundTransparency = 1
-    textLabel.Size = UDim2.new(1, -10, 1, -10) -- padding inside frame
-    textLabel.Position = UDim2.new(0, 5, 0, 5)
+    textLabel.Size = UDim2.new(1, -12, 1, 0)
+    textLabel.Position = UDim2.new(0, 6, 0, 0)
     textLabel.Font = Enum.Font.SourceSansSemibold
-    textLabel.TextSize = 18
+    textLabel.TextSize = 14 -- smaller font size
     textLabel.TextColor3 = Color3.new(1, 1, 1)
     textLabel.TextXAlignment = Enum.TextXAlignment.Left
     textLabel.TextYAlignment = Enum.TextYAlignment.Center
-    textLabel.TextWrapped = true
+    textLabel.TextWrapped = false
     textLabel.Text = text or ""
     textLabel.TextTransparency = 1
     textLabel.Parent = notifFrame
-
-    -- Wait a frame to get accurate TextBounds
-    RunService.Heartbeat:Wait()
     
-    -- Resize frame based on text size + padding
-    local padding = 10
-    local textSize = textLabel.TextBounds
-    local notifHeight = math.clamp(textSize.Y + padding * 2, 30, 150)
-    notifFrame.Size = UDim2.new(0, 300, 0, notifHeight)
-
-    -- Tween notification fade in
-    local fadeIn = TweenService:Create(notifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0})
+    -- Tween fade in
+    local fadeIn = TweenService:Create(notifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0.4})
     local textFadeIn = TweenService:Create(textLabel, TweenInfo.new(0.3), {TextTransparency = 0})
     fadeIn:Play()
     textFadeIn:Play()
     
-    -- After 3 seconds, fade out and remove notification
-    delay(3, function()
+    -- Auto fade out
+    delay(2, function()
         local fadeOut = TweenService:Create(notifFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
         local textFadeOut = TweenService:Create(textLabel, TweenInfo.new(0.5), {TextTransparency = 1})
-        
         fadeOut:Play()
         textFadeOut:Play()
         fadeOut.Completed:Wait()
-        
         notifFrame:Destroy()
     end)
 end
