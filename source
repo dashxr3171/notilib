@@ -11,10 +11,6 @@ local notificationPositions = {
     ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -80), AnchorPoint = Vector2.new(0, 1)},
 }
 
-local function isTopPosition(position)
-    return position == "TopLeft" or position == "MiddleLeft"
-end
-
 local function protectScreenGui(screenGui)
     if syn and syn.protect_gui then
         syn.protect_gui(screenGui)
@@ -109,7 +105,7 @@ do
             Name = "notification",
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0.2, -- Slightly transparent black background
+            BackgroundTransparency = 0.65,
             Position = UDim2.new(-0.2, 0, 0, 0),
             ClipsDescendants = true,
             BorderSizePixel = 0,
@@ -130,7 +126,7 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.new(0, 6, 0, 0),
             Text = text,
-            TextWrapped = false,
+            TextWrapped = false,  -- no wrapping, single line
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             Font = self.TextFont,
@@ -140,12 +136,12 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Wait a tiny bit to ensure TextBounds updates
-        task.wait(0.05)
+        -- Wait briefly so TextBounds updates properly
+        task.wait(0.1)
         local textBounds = label.TextBounds
         local paddingX = 12
         local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
-        local notifHeight = math.clamp(textBounds.Y + 6, 20, 50)
+        local notifHeight = 20
 
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
         label.Size = UDim2.new(0, textBounds.X, 1, 0)
