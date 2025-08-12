@@ -1,193 +1,213 @@
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 local insert, remove = table.insert, table.remove
 local format = string.format
 local newInstance = Instance.new
 
 local notificationPositions = {
-    ["TopLeft"] = {Position = UDim2.new(0, 10, 0, 80), AnchorPoint = Vector2.new(0, 0)},
-    ["MiddleLeft"] = {Position = UDim2.new(0, 10, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
-    ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -80), AnchorPoint = Vector2.new(0, 1)},
+	["TopLeft"] = {Position = UDim2.new(0, 10, 0, 80), AnchorPoint = Vector2.new(0, 0)},
+	["MiddleLeft"] = {Position = UDim2.new(0, 10, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
+	["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -80), AnchorPoint = Vector2.new(0, 1)},
 }
 
 local function protectScreenGui(screenGui)
-    if syn and syn.protect_gui then
-        syn.protect_gui(screenGui)
-        screenGui.Parent = CoreGui
-    elseif gethui then
-        screenGui.Parent = gethui()
-    else
-        screenGui.Parent = CoreGui
-    end
+	local player = Players.LocalPlayer
+	local isStudio = RunService:IsStudio()
+
+	if isStudio and player and player:FindFirstChild("PlayerGui") then
+		-- In Studio, parent to PlayerGui for easy testing
+		screenGui.Parent = player.PlayerGui
+	elseif syn and syn.protect_gui then
+		-- Executor with synapse support
+		syn.protect_gui(screenGui)
+		screenGui.Parent = CoreGui
+	elseif gethui then
+		-- Some other executor support
+		screenGui.Parent = gethui()
+	else
+		-- Fallback to CoreGui (may not work in all executors)
+		screenGui.Parent = CoreGui
+	end
 end
 
 local function createObject(className, properties)
-    local instance = newInstance(className)
-    for index, value in pairs(properties) do
-        instance[index] = value
-    end
-    return instance
+	local instance = newInstance(className)
+	for index, value in pairs(properties) do
+		instance[index] = value
+	end
+	return instance
 end
 
 local notifications = {}
+local notifications_screenGui -- local ScreenGui variable to avoid getgenv pollution
 
 do
-    function notifications.new(settings)
-        assert(settings, "missing argument #1 in function notifications.new(settings)")
-        assert(typeof(settings) == "table", format("expected table for argument #1 in function notifications.new(settings), got %s", typeof(settings)))
+	function notifications.new(settings)
+		assert(settings, "missing argument #1 in function notifications.new(settings)")
+		assert(typeof(settings) == "table", format("expected table for argument #1 in function notifications.new(settings), got %s", typeof(settings)))
 
-        local notificationSettings = {ui = {notificationsFrame = nil}}
-        for setting, value in pairs(settings) do
-            notificationSettings[setting] = value
-        end
+		local notificationSettings = {ui = {notificationsFrame = nil}}
+		for setting, value in pairs(settings) do
+			notificationSettings[setting] = value
+		end
 
-        notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
-        notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
-        notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
-        notificationSettings.TextSize = notificationSettings.TextSize or 13
-        notificationSettings.TextStrokeTransparency = notificationSettings.TextStrokeTransparency or 0.8
-        notificationSettings.TextStrokeColor = notificationSettings.TextStrokeColor or Color3.new(0, 0, 0)
-        notificationSettings.TextFont = notificationSettings.TextFont or Enum.Font.Code
-        notificationSettings.BookmarkColor = notificationSettings.BookmarkColor or Color3.fromRGB(0, 255, 128)
+		notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
+		notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
+		notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
+		notificationSettings.TextSize = notificationSettings.TextSize or 13
+		notificationSettings.TextStrokeTransparency = notificationSettings.TextStrokeTransparency or 0.8
+		notificationSettings.TextStrokeColor = notificationSettings.TextStrokeColor or Color3.new(0, 0, 0)
+		notificationSettings.TextFont = notificationSettings.TextFont or Enum.Font.Code
+		notificationSettings.BookmarkColor = notificationSettings.BookmarkColor or Color3.fromRGB(0, 255, 128)
 
-        assert(notificationPositions[notificationSettings.NotificationPosition], "NotificationPosition must be TopLeft, MiddleLeft, or BottomLeft")
+		assert(notificationPositions[notificationSettings.NotificationPosition], "NotificationPosition must be TopLeft, MiddleLeft, or BottomLeft")
 
-        setmetatable(notificationSettings, {__index = notifications})
-        notificationSettings:BuildNotificationUI()
-        notificationSettings._activeNotifications = {}
+		setmetatable(notificationSettings, {__index = notifications})
+		notificationSettings:BuildNotificationUI()
+		notificationSettings._activeNotifications = {}
 
-        return notificationSettings
-    end
+		return notificationSettings
+	end
 
-    function notifications:BuildNotificationUI()
-        if notifications_screenGui then
-            notifications_screenGui:Destroy()
-        end
+	function notifications:BuildNotificationUI()
+		if notifications_screenGui then
+			notifications_screenGui:Destroy()
+			notifications_screenGui = nil
+		end
 
-        getgenv().notifications_screenGui = createObject("ScreenGui", {
-            Name = "NotificationScreenGui",
-            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            IgnoreGuiInset = true,
-        })
-        protectScreenGui(notifications_screenGui)
+		notifications_screenGui = createObject("ScreenGui", {
+			Name = "NotificationScreenGui",
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			IgnoreGuiInset = true,
+		})
+		protectScreenGui(notifications_screenGui)
 
-        local posData = notificationPositions[self.NotificationPosition]
+		local posData = notificationPositions[self.NotificationPosition]
 
-        self.ui.notificationsFrame = createObject("Frame", {
-            Name = "notificationsFrame",
-            Parent = notifications_screenGui,
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 1,
-            Position = posData.Position,
-            AnchorPoint = posData.AnchorPoint,
-            Size = UDim2.new(0, 300, 1, -posData.Position.Y.Offset),
-            ClipsDescendants = true
-        })
-    end
+		self.ui.notificationsFrame = createObject("Frame", {
+			Name = "notificationsFrame",
+			Parent = notifications_screenGui,
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BackgroundTransparency = 1,
+			Position = posData.Position,
+			AnchorPoint = posData.AnchorPoint,
+			Size = UDim2.new(0, 900, 1, -posData.Position.Y.Offset),
+			ClipsDescendants = true
+		})
+	end
 
-    function notifications:_repositionNotifications()
-        local spacing = 5
-        local yOffset = 0
+	function notifications:_repositionNotifications()
+		local spacing = 3
+		local yOffset = 0
 
-        for _, notif in ipairs(self._activeNotifications) do
-            local targetPosition = UDim2.new(0, 0, 0, yOffset)
-            local tween = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-                Position = targetPosition
-            })
-            tween:Play()
-            yOffset = yOffset + notif.AbsoluteSize.Y + spacing
-        end
-    end
+		for _, notif in ipairs(self._activeNotifications) do
+			local targetPosition = UDim2.new(0, 0, 0, yOffset)
+			local tween = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+				Position = targetPosition
+			})
+			tween:Play()
+			yOffset = yOffset + notif.AbsoluteSize.Y + spacing
+		end
+	end
 
-    function notifications:Notify(text)
-        local notifFrame = createObject("Frame", {
-            Name = "notification",
-            Parent = self.ui.notificationsFrame,
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0.65,
-            Position = UDim2.new(-0.2, 0, 0, 0),
-            ClipsDescendants = true,
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0, 0),
-        })
+	function notifications:Notify(text)
+		-- Calculate vertical start offset based on last active notification
+		local startYOffset = 0
+		local lastNotif = self._activeNotifications[#self._activeNotifications]
+		if lastNotif then
+			startYOffset = lastNotif.Position.Y.Offset + lastNotif.AbsoluteSize.Y + 3 -- 3 px spacing
+		end
 
-        local bookmark = createObject("Frame", {
-            Name = "bookmark",
-            Parent = notifFrame,
-            BackgroundColor3 = self.BookmarkColor,
-            Size = UDim2.new(0, 2, 1, 0),
-            Position = UDim2.new(0, 0, 0, 0),
-        })
+		local notifFrame = createObject("Frame", {
+			Name = "notification",
+			Parent = self.ui.notificationsFrame,
+			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BackgroundTransparency = 0.65,
+			Position = UDim2.new(-1, 0, 0, startYOffset),  -- Start offscreen left, stacked vertically
+			ClipsDescendants = true,
+			BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0, 0),
+		})
 
-        local label = createObject("TextLabel", {
-            Name = "label",
-            Parent = notifFrame,
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 6, 0, 0),
-            Text = "aowijrseoijrtsoeijtsoiejtseioawdawddjtsioetj",
-            TextWrapped = false,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Center,
-            Font = self.TextFont,
-            TextColor3 = self.TextColor,
-            TextSize = self.TextSize,
-            TextStrokeColor3 = self.TextStrokeColor,
-            TextStrokeTransparency = self.TextStrokeTransparency,
-        })
+		local bookmark = createObject("Frame", {
+			Name = "bookmark",
+			Parent = notifFrame,
+			BackgroundColor3 = self.BookmarkColor,
+			Size = UDim2.new(0, 2, 1, 0),
+			Position = UDim2.new(0, 0, 0, 0),
+		})
 
-        -- Calculate text size using TextService:GetTextSize()
-        local paddingX = 15
-        local textSizeVector = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 100)) -- max width large enough
-        local notifWidth = math.clamp(textSizeVector.X + paddingX, 60, 600)
-        local notifHeight = math.clamp(textSizeVector.Y + 6, 20, 50)
+		local label = createObject("TextLabel", {
+			Name = "label",
+			Parent = notifFrame,
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 6, 0, 0),
+			Text = text,
+			TextWrapped = false,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Center,
+			Font = self.TextFont,
+			TextColor3 = self.TextColor,
+			TextSize = self.TextSize,
+			TextStrokeColor3 = self.TextStrokeColor,
+			TextStrokeTransparency = self.TextStrokeTransparency,
+		})
 
-        notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
-        label.Size = UDim2.new(0, textSizeVector.X, 1, 0)
+		local textSizeVector = TextService:GetTextSize(text, self.TextSize, self.TextFont, Vector2.new(1000, 100))
+		local maxWidthPx = self.ui.notificationsFrame.AbsoluteSize.X
+		local notifWidthPx = math.clamp(textSizeVector.X + 10, 60, maxWidthPx)
+		local notifHeightPx = math.clamp(textSizeVector.Y + 6, 20, 50)
 
-        local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 0, 0, notifFrame.Position.Y.Offset)
-        })
-        local textTween = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-            TextTransparency = 0,
-            TextStrokeTransparency = self.TextStrokeTransparency,
-        })
+		notifFrame.Size = UDim2.new(0, notifWidthPx, 0, notifHeightPx)
+		label.Size = UDim2.new(1, -10, 1, 0)
 
-        label.TextTransparency = 1
-        label.TextStrokeTransparency = 1
+		-- Tween in from left to x=0 but keep y position (startYOffset)
+		local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0, 0, 0, startYOffset)
+		})
+		local textTween = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+			TextTransparency = 0,
+			TextStrokeTransparency = self.TextStrokeTransparency,
+		})
 
-        tweenIn:Play()
-        textTween:Play()
+		label.TextTransparency = 1
+		label.TextStrokeTransparency = 1
 
-        insert(self._activeNotifications, notifFrame)
-        self:_repositionNotifications()
+		tweenIn:Play()
+		textTween:Play()
 
-        task.delay(self.NotificationLifetime, function()
-            local tweenOutFrame = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
-                Position = notifFrame.Position - UDim2.new(0.2, 0, 0, 0),
-                BackgroundTransparency = 1
-            })
-            local tweenOutText = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
-                TextTransparency = 1,
-                TextStrokeTransparency = 1
-            })
+		insert(self._activeNotifications, notifFrame)
+		self:_repositionNotifications()
 
-            tweenOutFrame:Play()
-            tweenOutText:Play()
+		task.delay(self.NotificationLifetime, function()
+			local tweenOutFrame = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+				Position = UDim2.new(-1, 0, 0, notifFrame.Position.Y.Offset),
+				BackgroundTransparency = 1
+			})
+			local tweenOutText = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+				TextTransparency = 1,
+				TextStrokeTransparency = 1
+			})
 
-            tweenOutFrame.Completed:Connect(function()
-                for i, v in ipairs(self._activeNotifications) do
-                    if v == notifFrame then
-                        remove(self._activeNotifications, i)
-                        break
-                    end
-                end
-                notifFrame:Destroy()
-                self:_repositionNotifications()
-            end)
-        end)
-    end
+			tweenOutFrame:Play()
+			tweenOutText:Play()
+
+			tweenOutFrame.Completed:Connect(function()
+				for i, v in ipairs(self._activeNotifications) do
+					if v == notifFrame then
+						remove(self._activeNotifications, i)
+						break
+					end
+				end
+				notifFrame:Destroy()
+				self:_repositionNotifications()
+			end)
+		end)
+	end
 end
 
 return notifications
