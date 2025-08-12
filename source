@@ -1,37 +1,23 @@
--- variables
-local TweenService, CoreGui = game:GetService("TweenService"), game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
 
 local insert, remove = table.insert, table.remove
 local format = string.format
 local newInstance = Instance.new
-local fromRGB = Color3.fromRGB
 
+-- Allowed left-only positions with AnchorPoints for alignment
 local notificationPositions = {
-    ["Middle"] = UDim2.new(0.445, 0, 0.7, 0),
-    ["MiddleRight"] = UDim2.new(0.85, 0, 0.7, 0),
-    ["MiddleLeft"] = UDim2.new(0.01, 0, 0.7, 0),
-
-    ["Top"] = UDim2.new(0.445, 0, 0.007, 0),
-    ["TopLeft"] = UDim2.new(0.06, 0, 0.001, 0),
-    ["TopRight"] = UDim2.new(0.8, 0, 0.001, 0),
-
-    ["Bottom"] = UDim2.new(0.445, 0, 0.95, 0),
-    ["BottomLeft"] = UDim2.new(0.06, 0, 0.95, 0),
-    ["BottomRight"] = UDim2.new(0.8, 0, 0.95, 0),
+    ["TopLeft"] = {Position = UDim2.new(0.05, 0, 0.05, 0), AnchorPoint = Vector2.new(0, 0)},
+    ["MiddleLeft"] = {Position = UDim2.new(0.05, 0, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
+    ["BottomLeft"] = {Position = UDim2.new(0.05, 0, 0.95, 0), AnchorPoint = Vector2.new(0, 1)},
 }
 
--- Determines if the position is a top or bottom stacking area
 local function isTopPosition(position)
-    return position == "Top" or position == "TopLeft" or position == "TopRight" or
-           position == "Middle" or position == "MiddleLeft" or position == "MiddleRight"
+    return position == "TopLeft" or position == "MiddleLeft"
 end
 
-local function isRightSide(position)
-    return position == "TopRight" or position == "MiddleRight" or position == "BottomRight"
-end
-
-local function isLeftSide(position)
-    return position == "TopLeft" or position == "MiddleLeft" or position == "BottomLeft"
+local function isBottomPosition(position)
+    return position == "BottomLeft"
 end
 
 local function protectScreenGui(screenGui)
@@ -47,18 +33,17 @@ end
 
 local function createObject(className, properties)
     local instance = newInstance(className)
-    for index, value in next, properties do
+    for index, value in pairs(properties) do
         instance[index] = value
     end
     return instance
 end
 
-local function fadeAndSlideOut(notification, isRight, onComplete)
-    -- Tween slide out horizontally and fade text out
+local function fadeAndSlideOut(notification, onComplete)
     local goal = {
         TextTransparency = 1,
         TextStrokeTransparency = 1,
-        Position = notification.Position + UDim2.new(isRight and 0.1 or -0.1, 0, 0, 0)
+        Position = notification.Position + UDim2.new(-0.1, 0, 0, 0) -- slide left on fade out
     }
     local tween = TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), goal)
     tween.Completed:Connect(onComplete)
@@ -72,20 +57,22 @@ do
         assert(settings, "missing argument #1 in function notifications.new(settings)")
         assert(typeof(settings) == "table", format("expected table for argument #1 in function notifications.new(settings), got %s", typeof(settings)))
 
-        local notificationSettings = {ui = {notificationsFrame = nil, notificationsFrame_UIListLayout = nil}}
-
-        for setting, value in next, settings do
+        local notificationSettings = {ui = {notificationsFrame = nil}}
+        for setting, value in pairs(settings) do
             notificationSettings[setting] = value
         end
 
         -- Defaults
-        notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopRight"
+        notificationSettings.NotificationPosition = notificationSettings.NotificationPosition or "TopLeft"
         notificationSettings.NotificationLifetime = notificationSettings.NotificationLifetime or 3
         notificationSettings.TextColor = notificationSettings.TextColor or Color3.new(1, 1, 1)
         notificationSettings.TextSize = notificationSettings.TextSize or 14
         notificationSettings.TextStrokeTransparency = notificationSettings.TextStrokeTransparency or 0.8
         notificationSettings.TextStrokeColor = notificationSettings.TextStrokeColor or Color3.new(0, 0, 0)
         notificationSettings.TextFont = notificationSettings.TextFont or Enum.Font.SourceSansBold
+        notificationSettings.BookmarkColor = notificationSettings.BookmarkColor or Color3.fromRGB(255, 85, 85)
+
+        assert(notificationPositions[notificationSettings.NotificationPosition], "NotificationPosition must be TopLeft, MiddleLeft, or BottomLeft")
 
         setmetatable(notificationSettings, {__index = notifications})
         notificationSettings:BuildNotificationUI()
@@ -134,13 +121,20 @@ do
         end
     end
 
+    function notifications:SetBookmarkColor(color3)
+        assert(color3, "missing argument #1 in function SetBookmarkColor(Color3)")
+        assert(typeof(color3) == "Color3", format("expected Color3 for argument #1 in function SetBookmarkColor, got %s", typeof(color3)))
+        self.BookmarkColor = color3
+    end
+
     function notifications:SetNotificationPosition(position)
         assert(position, "missing argument #1 in function SetNotificationPosition(position)")
-        assert(notificationPositions[position], format("Invalid notification position '%s'", tostring(position)))
-
+        assert(notificationPositions[position], "Position must be TopLeft, MiddleLeft, or BottomLeft")
         self.NotificationPosition = position
         if self.ui and self.ui.notificationsFrame then
-            self.ui.notificationsFrame.Position = notificationPositions[position]
+            local posData = notificationPositions[position]
+            self.ui.notificationsFrame.Position = posData.Position
+            self.ui.notificationsFrame.AnchorPoint = posData.AnchorPoint
         end
     end
 
@@ -154,51 +148,43 @@ do
         })
         protectScreenGui(notifications_screenGui)
 
+        local posData = notificationPositions[self.NotificationPosition]
+
         self.ui.notificationsFrame = createObject("Frame", {
             Name = "notificationsFrame",
             Parent = notifications_screenGui,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 1.000,
-            Position = notificationPositions[self.NotificationPosition],
-            Size = UDim2.new(0, 240, 0, 215),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundTransparency = 0.85,
+            Position = posData.Position,
+            AnchorPoint = posData.AnchorPoint,
+            Size = UDim2.new(0, 180, 0, 300),
             ClipsDescendants = true
         })
 
-        self.ui.notificationsFrame_UIListLayout = createObject("UIListLayout", {
-            Name = "notificationsFrame_UIListLayout",
-            Parent = self.ui.notificationsFrame,
-            Padding = UDim.new(0, 4),
-            SortOrder = Enum.SortOrder.LayoutOrder
-        })
-
-        -- We will disable automatic layout to manage tweening manually
-        self.ui.notificationsFrame_UIListLayout.Parent = nil
+        -- No UIListLayout; manual positioning for smooth tween
     end
 
     function notifications:_repositionNotifications()
-        -- Reposition all active notifications smoothly based on stacking rules
+        local spacing = 6
+        local stackDown = isTopPosition(self.NotificationPosition)
         local yOffset = 0
-        local spacing = 4
-        local stackDown = isTopPosition(self.NotificationPosition) -- true if stacking downward, false if upward
 
-        -- For stacking up, we start from the bottom and move upwards
         local notificationsToPosition = self._activeNotifications
 
         if not stackDown then
-            -- Reverse the order for stacking upward (bottom positions)
-            notificationsToPosition = {}
+            local reversed = {}
             for i = #self._activeNotifications, 1, -1 do
-                insert(notificationsToPosition, self._activeNotifications[i])
+                insert(reversed, self._activeNotifications[i])
             end
+            notificationsToPosition = reversed
         end
 
-        for i, notif in ipairs(notificationsToPosition) do
+        for _, notif in ipairs(notificationsToPosition) do
             local targetY
             if stackDown then
                 targetY = yOffset
                 yOffset = yOffset + notif.AbsoluteSize.Y + spacing
             else
-                -- Start from bottom, move up
                 targetY = - (yOffset + notif.AbsoluteSize.Y)
                 yOffset = yOffset + notif.AbsoluteSize.Y + spacing
             end
@@ -212,48 +198,63 @@ do
     end
 
     function notifications:Notify(text)
-        local notifFrame = createObject("TextLabel", {
+        local notifFrame = createObject("Frame", {
             Name = "notification",
             Parent = self.ui.notificationsFrame,
-            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-            BackgroundTransparency = 0.3,
-            Size = UDim2.new(0, 220, 0, 26),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundTransparency = 0,
+            Size = UDim2.new(0, 180, 0, 30),
+            Position = UDim2.new(0, 0, 0, 0),
+            ClipsDescendants = true,
+        })
+
+        local bookmark = createObject("Frame", {
+            Name = "bookmark",
+            Parent = notifFrame,
+            BackgroundColor3 = self.BookmarkColor,
+            Size = UDim2.new(0, 5, 1, 0),
+            Position = UDim2.new(0, 0, 0, 0),
+        })
+
+        local label = createObject("TextLabel", {
+            Name = "label",
+            Parent = notifFrame,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 0),
+            Size = UDim2.new(1, -8, 1, 0),
             Text = text,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
-
             Font = self.TextFont,
             TextColor3 = self.TextColor,
             TextSize = self.TextSize,
             TextStrokeColor3 = self.TextStrokeColor,
             TextStrokeTransparency = self.TextStrokeTransparency,
-            Position = UDim2.new(0, 0, 0, 0),
-            ClipsDescendants = true,
-            LayoutOrder = #self._activeNotifications + 1
         })
 
-        -- Tween slide-in from the opposite side (left or right) based on position
-        local isRight = isRightSide(self.NotificationPosition)
-        local startX = isRight and 0.2 or -0.2
-        notifFrame.Position = UDim2.new(startX, 0, 0, 0)
-        notifFrame.TextTransparency = 1
-        notifFrame.TextStrokeTransparency = 1
+        -- Animate slide-in from left (-0.2 x offset)
+        notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
+        label.TextTransparency = 1
+        label.TextStrokeTransparency = 1
 
         local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             Position = UDim2.new(0, 0, 0, 0),
+        })
+
+        local textTween = TweenService:Create(label, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             TextTransparency = 0,
             TextStrokeTransparency = self.TextStrokeTransparency
         })
+
         tweenIn:Play()
+        textTween:Play()
 
         insert(self._activeNotifications, notifFrame)
         self:_repositionNotifications()
 
-        -- Remove notification after lifetime with fade and slide out
         task.delay(self.NotificationLifetime, function()
-            fadeAndSlideOut(notifFrame, isRight, function()
-                -- Remove from active notifications
+            fadeAndSlideOut(notifFrame, function()
                 for i, v in ipairs(self._activeNotifications) do
                     if v == notifFrame then
                         remove(self._activeNotifications, i)
