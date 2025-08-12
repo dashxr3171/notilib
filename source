@@ -1,0 +1,113 @@
+-- NotificationLib ModuleScript
+local NotificationLib = {}
+NotificationLib.__index = NotificationLib
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+function NotificationLib.new()
+    local self = setmetatable({}, NotificationLib)
+    
+    -- Create ScreenGui
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = "CustomNotificationGui"
+    self.ScreenGui.ResetOnSpawn = false
+    self.ScreenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    
+    -- Container frame to hold notifications
+    self.Container = Instance.new("Frame")
+    self.Container.Name = "NotificationContainer"
+    self.Container.BackgroundTransparency = 1
+    self.Container.Position = UDim2.new(0, 10, 0, 10) -- Top-left corner with a small offset
+    self.Container.Size = UDim2.new(0, 300, 0, 0)
+    self.Container.AnchorPoint = Vector2.new(0, 0)
+    self.Container.Parent = self.ScreenGui
+    
+    -- UIListLayout for stacking notifications vertically
+    local uiListLayout = Instance.new("UIListLayout")
+    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    uiListLayout.Padding = UDim.new(0, 5)
+    uiListLayout.Parent = self.Container
+    
+    -- Store reference to layout for later
+    self.UIListLayout = uiListLayout
+    
+    -- Default color for notification backgrounds
+    self.NotifColor = Color3.fromRGB(50, 50, 50)
+    
+    return self
+end
+
+-- Set notification background color
+function NotificationLib:SetColor(color3)
+    self.NotifColor = color3 or Color3.fromRGB(50, 50, 50)
+end
+
+-- Create a new notification with the given text
+function NotificationLib:LCreatNoti(text)
+    -- Create frame for notification
+    local notifFrame = Instance.new("Frame")
+    notifFrame.BackgroundColor3 = self.NotifColor
+    notifFrame.BackgroundTransparency = 0
+    notifFrame.BorderSizePixel = 0
+    notifFrame.AnchorPoint = Vector2.new(0, 0)
+    notifFrame.Size = UDim2.new(0, 300, 0, 0) -- height will be adjusted by text size
+    notifFrame.Parent = self.Container
+    notifFrame.ClipsDescendants = true
+    
+    -- Create text label
+    local textLabel = Instance.new("TextLabel")
+    textLabel.BackgroundTransparency = 1
+    textLabel.Size = UDim2.new(1, -10, 1, -10) -- padding inside frame
+    textLabel.Position = UDim2.new(0, 5, 0, 5)
+    textLabel.Font = Enum.Font.SourceSansSemibold
+    textLabel.TextSize = 18
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.TextYAlignment = Enum.TextYAlignment.Center
+    textLabel.TextWrapped = true
+    textLabel.Text = text or ""
+    textLabel.Parent = notifFrame
+    
+    -- Automatically size notification based on text content
+    local textSize = textLabel.TextBounds
+    local padding = 10
+    local notifHeight = math.clamp(textSize.Y + padding * 2, 30, 150)
+    notifFrame.Size = UDim2.new(0, 300, 0, notifHeight)
+    
+    -- Tween notification in (fade in)
+    notifFrame.BackgroundTransparency = 1
+    textLabel.TextTransparency = 1
+    local fadeIn = TweenService:Create(notifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0})
+    local textFadeIn = TweenService:Create(textLabel, TweenInfo.new(0.3), {TextTransparency = 0})
+    fadeIn:Play()
+    textFadeIn:Play()
+    
+    -- Tween container size (optional but keeps container height minimal)
+    local goalHeight = self.Container.Size.Y.Offset + notifHeight + self.UIListLayout.Padding.Offset
+    self.Container.Size = UDim2.new(0, 300, 0, goalHeight)
+    
+    -- After some time, fade out and remove notification
+    delay(3, function()
+        local fadeOut = TweenService:Create(notifFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+        local textFadeOut = TweenService:Create(textLabel, TweenInfo.new(0.5), {TextTransparency = 1})
+        
+        fadeOut:Play()
+        textFadeOut:Play()
+        fadeOut.Completed:Wait()
+        
+        -- Remove the notification frame
+        notifFrame:Destroy()
+        
+        -- Adjust container size
+        local newHeight = 0
+        for _, child in ipairs(self.Container:GetChildren()) do
+            if child:IsA("Frame") then
+                newHeight = newHeight + child.Size.Y.Offset + self.UIListLayout.Padding.Offset
+            end
+        end
+        self.Container.Size = UDim2.new(0, 300, 0, newHeight)
+    end)
+end
+
+return NotificationLib
