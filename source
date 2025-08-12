@@ -6,10 +6,10 @@ local format = string.format
 local newInstance = Instance.new
 
 local notificationPositions = {
-    -- Lower Y offset from 10 to 40 to move notifications down
-    ["TopLeft"] = {Position = UDim2.new(0, 10, 0, 40), AnchorPoint = Vector2.new(0, 0)},
+    -- Increased Y offset from 40 to 80 to move notifications further down
+    ["TopLeft"] = {Position = UDim2.new(0, 10, 0, 80), AnchorPoint = Vector2.new(0, 0)},
     ["MiddleLeft"] = {Position = UDim2.new(0, 10, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
-    ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -40), AnchorPoint = Vector2.new(0, 1)},
+    ["BottomLeft"] = {Position = UDim2.new(0, 10, 1, -80), AnchorPoint = Vector2.new(0, 1)},
 }
 
 local function isTopPosition(position)
@@ -163,17 +163,15 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Dynamically size notifFrame width & height based on text bounds + padding
         local textBounds = label.TextBounds
-        local paddingX = 12 -- 6 left padding + 2 bookmark + 4 extra spacing
+        local paddingX = 12
         local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
 
-        local notifHeight = 20 -- thinner notification height (down from 24)
+        local notifHeight = 20
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
 
         label.Size = UDim2.new(0, textBounds.X, 1, 0)
 
-        -- Slide in from left offset
         notifFrame.Position = UDim2.new(-0.2, 0, 0, 0)
         label.TextTransparency = 1
         label.TextStrokeTransparency = 1
