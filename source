@@ -109,7 +109,7 @@ do
             Name = "notification",
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0, -- fully opaque background!
+            BackgroundTransparency = 0.2, -- Slightly transparent black background
             Position = UDim2.new(-0.2, 0, 0, 0),
             ClipsDescendants = true,
             BorderSizePixel = 0,
@@ -140,18 +140,16 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Wait for label to render and update TextBounds properly
-        label:GetPropertyChangedSignal("TextBounds"):Wait()
-
+        -- Wait a tiny bit to ensure TextBounds updates
+        task.wait(0.05)
         local textBounds = label.TextBounds
         local paddingX = 12
         local notifWidth = math.clamp(textBounds.X + paddingX, 60, 300)
-        local notifHeight = math.clamp(textBounds.Y + 4, 20, 50) -- dynamically adjust height based on text height with some padding
+        local notifHeight = math.clamp(textBounds.Y + 6, 20, 50)
 
         notifFrame.Size = UDim2.new(0, notifWidth, 0, notifHeight)
         label.Size = UDim2.new(0, textBounds.X, 1, 0)
 
-        -- Tween notification sliding in from left
         local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
             Position = UDim2.new(0, 0, 0, notifFrame.Position.Y.Offset)
         })
@@ -160,7 +158,6 @@ do
             TextStrokeTransparency = self.TextStrokeTransparency,
         })
 
-        -- Start with transparent text
         label.TextTransparency = 1
         label.TextStrokeTransparency = 1
 
