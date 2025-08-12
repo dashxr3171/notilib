@@ -7,9 +7,10 @@ local newInstance = Instance.new
 
 -- Allowed left-only positions with AnchorPoints for perfect alignment
 local notificationPositions = {
-    ["TopLeft"] = {Position = UDim2.new(0, 0, 0, 0), AnchorPoint = Vector2.new(0, 0)},
-    ["MiddleLeft"] = {Position = UDim2.new(0, 0, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
-    ["BottomLeft"] = {Position = UDim2.new(0, 0, 1, 0), AnchorPoint = Vector2.new(0, 1)},
+    -- Positioned slightly outside the exact corner to "hug" top-left screen corner better
+    ["TopLeft"] = {Position = UDim2.new(0, -2, 0, -2), AnchorPoint = Vector2.new(0, 0)},
+    ["MiddleLeft"] = {Position = UDim2.new(0, -2, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)},
+    ["BottomLeft"] = {Position = UDim2.new(0, -2, 1, 2), AnchorPoint = Vector2.new(0, 1)},
 }
 
 local function isTopPosition(position)
@@ -145,7 +146,7 @@ do
 
         getgenv().notifications_screenGui = createObject("ScreenGui", {
             ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            IgnoreGuiInset = true, -- ignore Roblox topbar inset
+            IgnoreGuiInset = true,
         })
         protectScreenGui(notifications_screenGui)
 
@@ -155,10 +156,10 @@ do
             Name = "notificationsFrame",
             Parent = notifications_screenGui,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0,
+            BackgroundTransparency = 1, -- make holder fully invisible now
             Position = posData.Position,
             AnchorPoint = posData.AnchorPoint,
-            Size = UDim2.new(0, 140, 0, 280),
+            Size = UDim2.new(0, 120, 0, 260),
             ClipsDescendants = true
         })
 
@@ -204,7 +205,7 @@ do
             Parent = self.ui.notificationsFrame,
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
             BackgroundTransparency = 0,
-            Size = UDim2.new(0, 140, 0, 28),
+            Size = UDim2.new(0, 120, 0, 28),
             Position = UDim2.new(0, 0, 0, 0),
             ClipsDescendants = true,
         })
